@@ -7,11 +7,11 @@ go get github.com/disturb16/kafkaclient
 ## Consumer
 ```
 func onMessageReceived(topic string, message string){
-  //do stuff with message
+  // do stuff with message
 }
 
 
-// listen to kafka topics
+// listen to test and test2 topics
 client := kafkaclient.New("localhost", "group", onMessageReceived)
 go client.ListenToTopics([]string{"test", "test2"})
 ```
@@ -19,5 +19,6 @@ go client.ListenToTopics([]string{"test", "test2"})
 ## Producer
 ```
 client := kafkaclient.New("localhost", "producerGroup", nil)
-go client.ProduceToTopic("topic2", "test message")
+// produce message to test topic
+go client.ProduceToTopic("test", "this is a test message")
 ```
