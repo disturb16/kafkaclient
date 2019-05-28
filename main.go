@@ -1,7 +1,6 @@
 package kafkaclient
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -36,17 +35,18 @@ func (kb *KafkaClient) ListenToTopics(topics []string) {
 	})
 
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return
 	}
 
 	defer consumer.Close()
 	err = consumer.SubscribeTopics(topics, nil)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return
 	}
 
-	consoleFeedback := fmt.Sprintf("Listening to kafka topics: %s", strings.Join(topics, ", "))
-	log.Println(consoleFeedback)
+	log.Printf("Listening to kafka topics: %s", strings.Join(topics, ", "))
 
 	for {
 		msg, err := consumer.ReadMessage(-1)
