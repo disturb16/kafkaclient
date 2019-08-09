@@ -1,7 +1,6 @@
 package kafkaclient
 
 import (
-	"fmt"
 	"context"
 	"log"
 	"time"
@@ -55,10 +54,10 @@ func (kc *KafkaClient) ProduceToTopic(ctx context.Context, topic string, message
 func (kc *KafkaClient) ListenToTopic(ctx context.Context, topic string) {
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  []string{kc.Server},
-		GroupID:  kc.GroupID,
-		Topic:    topic,
-		MaxWait:  1 * time.Second, // Maximum amount of time to wait for new data to come when fetching batches of messages from kafka.
+		Brokers: []string{kc.Server},
+		GroupID: kc.GroupID,
+		Topic:   topic,
+		MaxWait: 1 * time.Second, // Maximum amount of time to wait for new data to come when fetching batches of messages from kafka.
 	})
 
 	defer reader.Close()
@@ -69,7 +68,7 @@ func (kc *KafkaClient) ListenToTopic(ctx context.Context, topic string) {
 		if kc.OnMessageReceived != nil {
 			kc.OnMessageReceived(msg.Topic, string(msg.Value))
 		}
-		
+
 		if err != nil {
 			log.Printf("Consumer error: %v (%v)\n", err, msg)
 		}
