@@ -1,10 +1,12 @@
 package kafkaclient
 
 import (
+	"fmt"
+	"context"
 	"log"
-	"strings"
+	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/segmentio/kafka-go"
 )
 
 // onMessage receives topic, message
@@ -26,58 +28,51 @@ func New(server string, groupID string, onMessageReceived onMessage) *KafkaClien
 	}
 }
 
-// ListenToTopics starts listening to specified topics
-func (kb *KafkaClient) ListenToTopics(topics []string) {
-	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": kb.Server,
-		"group.id":          kb.GroupID,
-		"auto.offset.reset": "earliest",
+// ProduceToTopic Sends a message to the specified topic
+func (kc *KafkaClient) ProduceToTopic(ctx context.Context, topic string, message string) error {
+
+	w := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:  []string{kc.Server},
+		Topic:    topic,
+		Balancer: &kafka.LeastBytes{},
+	})
+
+	defer w.Close()
+
+	err := w.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(topic),
+		Value: []byte(message),
 	})
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
-	defer consumer.Close()
-	err = consumer.SubscribeTopics(topics, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	return nil
+}
 
-	log.Printf("Listening to kafka topics: %s", strings.Join(topics, ", "))
+// ListenToTopic starts listening for the specified topic
+func (kc *KafkaClient) ListenToTopic(ctx context.Context, topic string) {
 
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{kc.Server},
+		GroupID:  kc.GroupID,
+		Topic:    topic,
+		MaxWait:  1 * time.Second, // Maximum amount of time to wait for new data to come when fetching batches of messages from kafka.
+	})
+
+	defer reader.Close()
+
+	log.Printf("Listening to kafka topic: %s", topic)
 	for {
-		msg, err := consumer.ReadMessage(-1)
-		if err == nil {
-			if kb.OnMessageReceived != nil {
-				kb.OnMessageReceived(*msg.TopicPartition.Topic, string(msg.Value))
-			}
-		} else {
+		msg, err := reader.ReadMessage(ctx)
+		if kc.OnMessageReceived != nil {
+			kc.OnMessageReceived(msg.Topic, string(msg.Value))
+		}
+		
+		if err != nil {
 			log.Printf("Consumer error: %v (%v)\n", err, msg)
 		}
 	}
-}
 
-// ProduceToTopic Sends a message to the specified topic
-func (kb *KafkaClient) ProduceToTopic(topic string, message string) {
-	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": kb.Server})
-	if err != nil {
-		panic(err)
-	}
-
-	defer producer.Close()
-	// Produce messages to topic (asynchronously)
-	err = producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(message),
-	}, nil)
-
-	if err != nil {
-		log.Println(err)
-	}
-
-	// Wait for message deliveries before shutting down
-	producer.Flush(15 * 1000)
 }
